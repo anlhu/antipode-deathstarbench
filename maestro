@@ -472,7 +472,7 @@ def build__socialNetwork__gcp(args):
 
   # Create base VM
   compute = googleapiclient.discovery.build('compute', 'v1')
-  image_response = compute.images().getFromFamily(project='debian-cloud', family='debian-10').execute()
+  image_response = compute.images().getFromFamily(project='debian-cloud', family='debian-11').execute()
   source_disk_image = image_response['selfLink']
   zone = GCP_MACHINE_IMAGE_ZONE
   config = {
