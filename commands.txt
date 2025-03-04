@@ -4,10 +4,10 @@
 ./maestro --local socialNetwork deploy -config configs/local/socialNetwork/debug.yml -clients 1
 ./maestro --local socialNetwork deploy -config configs/gsd/socialNetwork/singlenode.yml -clients 1
 - pick some config file
-- bebug.yml gave me nothin on jaegar
+- both of them gave me nothin on jaegar at the gather step...
 
 ./maestro --local socialNetwork run -antipode
-- decently fast
+- not too long
 
 ./maestro --local socialNetwork wkld -E compose-post -r 100 -d 300
 - kinda long depending on duration
@@ -17,3 +17,5 @@
 - printing out response, i am getting empty data and nothing collected at all...
 
 ./maestro --local socialNetwork clean
+- kills leftover containers
+- need to do this between runs, deploying creates them
