@@ -1,0 +1,19 @@
+./maestro --local socialNetwork build
+- first run is long, then its cached
+
+./maestro --local socialNetwork deploy -config configs/local/socialNetwork/debug.yml -clients 1
+./maestro --local socialNetwork deploy -config configs/gsd/socialNetwork/singlenode.yml -clients 1
+- pick some config file
+- bebug.yml gave me nothin on jaegar
+
+./maestro --local socialNetwork run -antipode
+- decently fast
+
+./maestro --local socialNetwork wkld -E compose-post -r 100 -d 300
+- kinda long depending on duration
+
+./maestro --local socialNetwork gather
+- not working so far, list index error on line 1715
+- printing out response, i am getting empty data and nothing collected at all...
+
+./maestro --local socialNetwork clean
