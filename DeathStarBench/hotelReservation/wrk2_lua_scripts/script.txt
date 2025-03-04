@@ -1,0 +1,1 @@
+./wrk2/wrk -D exp -t 8 -c 100 -R 1600 -d 1m -P -L -s ./wrk2/scripts/hotel-reservation/mixed-workload_type_1.lua http://localhost:5000
