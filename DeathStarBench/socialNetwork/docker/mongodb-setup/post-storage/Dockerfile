@@ -1,5 +1,14 @@
 FROM mongo:4.4.6
 
+RUN apt-key list | \
+    grep "expired: " | \
+    sed -ne 's|pub .*/\([^ ]*\) .*|\1|gp' | \
+    xargs -n1 apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys
+
+RUN apt-key del 656408E390CFB1F5
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 656408E390CFB1F5
+RUN apt-get update
+
 RUN set -ex ;\
     apt-get update ;\
     apt-get install -y --no-install-recommends \
