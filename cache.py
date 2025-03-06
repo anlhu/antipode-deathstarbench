@@ -21,7 +21,7 @@ class WakeupThread:
         self.wakeup_thread = Timer(
             self._remaining_time(entry.get_start_time()),
             invalidation_thread,
-            args=[id],
+            args=[self.wakeup_id],
         )
         self.wakeup_thread.start()
 
