@@ -2,6 +2,9 @@ from heapq import *
 import time
 from threading import Timer
 
+# The idea is to have a single Timer thread that will print when the oldest message has expired
+# Using a Timer thread since they can be cancelled, apparently threads can't be killed
+
 
 # Called with threading.Timer
 # Make it do something besides print? How??
@@ -9,6 +12,9 @@ def invalidation_thread(name) -> None:
     print(f"{name} failed to receive response in time")
 
 
+# Manages the sleeping thread
+# Can observe the stream of entries that are added to or removed from the heap
+#   If heap tells you oldest entry, can decide when to kill the sleeper and replace it with next entry
 class WakeupThread:
     LIFETIME_SECONDS = 60
 
@@ -25,6 +31,10 @@ class WakeupThread:
         )
         self.wakeup_thread.start()
 
+    def _cancel_timer(self) -> None:
+        if self.wakeup_thread is not None:
+            self.wakeup_thread.cancel()
+
     def _remaining_time(self, start_time: float) -> float:
         elapsed_time = time.time() - start_time
         return self.LIFETIME_SECONDS - elapsed_time
@@ -35,14 +45,13 @@ class WakeupThread:
 
     def observe_remove_entry(self, entry: "CacheEntry", next: "CacheEntry") -> None:
         if entry.get_id() == self.wakeup_id:
-            self.cancel()
+            self._cancel_timer()
             self._start_timer(next)
 
-    def cancel(self) -> None:
-        if self.wakeup_thread is not None:
-            self.wakeup_thread.cancel()
 
-
+# The heap is a min-heap, so the oldest message is at the top
+# CacheEntry implements __lt__ so the heap can compare objects
+# CacheEntry implements __eq__ so we can remove objects from the heap
 class Heap:
 
     def __init__(self) -> None:
@@ -65,6 +74,10 @@ class Heap:
         self.wakeup_thread.observe_remove_entry(removedEntry, self._get_oldest())
 
 
+# Represents a single entry in the cache
+# We only want the message's ID and the time it was sent
+# If it's a message received, we will just ignore it's timestamp - not great but good enough for now
+# Python's built in heap uses __lt__ and __eq__ to compare objects, so do it for the heap
 class CacheEntry:
 
     def __init__(self, message) -> None:
@@ -88,8 +101,6 @@ class CacheEntry:
         return self.id == other.id
 
 
-# The idea is to have a single Timer thread that will print when the oldest message has expired
-# Using a Timer thread since they can be cancelled, apparently threads can't be killed
 # This is just an interface for the message queue to use
 class MessageCache:
 
