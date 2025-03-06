@@ -1,51 +1,103 @@
 from heapq import *
 import time
+from threading import Timer
 
+
+# Called with threading.Timer
+# Make it do something besides print? How??
+def invalidation_thread(name) -> None:
+    print(f"{name} failed to receive response in time")
+
+
+class WakeupThread:
+    LIFETIME_SECONDS = 60
+
+    def __init__(self) -> None:
+        self.wakeup_thread: None | Timer = None
+        self.wakeup_id: None | int = None
+
+    def _start_timer(self, entry: "CacheEntry") -> None:
+        self.wakeup_id = entry.get_id()
+        self.wakeup_thread = Timer(
+            self._remaining_time(entry.get_start_time()),
+            invalidation_thread,
+            args=[id],
+        )
+        self.wakeup_thread.start()
+
+    def _remaining_time(self, start_time: float) -> float:
+        elapsed_time = time.time() - start_time
+        return self.LIFETIME_SECONDS - elapsed_time
+
+    def observe_new_entry(self, entry: "CacheEntry") -> None:
+        if self.wakeup_thread is None:
+            self._start_timer(entry)
+
+    def observe_remove_entry(self, entry: "CacheEntry", next: "CacheEntry") -> None:
+        if entry.get_id() == self.wakeup_id:
+            self.cancel()
+            self._start_timer(next)
+
+    def cancel(self) -> None:
+        if self.wakeup_thread is not None:
+            self.wakeup_thread.cancel()
+
+
+class Heap:
+
+    def __init__(self) -> None:
+        self.heap: list["CacheEntry"] = []
+        heapify(self.heap)
+        self.wakeup_thread = WakeupThread()
+
+    def add(self, message) -> None:
+        entryObj = CacheEntry(message)
+        heappush(self.heap, entryObj)
+        self.wakeup_thread.observe_new_entry(entryObj)
+
+    def remove(self, message) -> None:
+        searchObj = CacheEntry(message)
+        removedEntry = self.heap.pop(self.heap.index(searchObj))
+        heapify(self.heap)
+        self.wakeup_thread.observe_remove_entry(removedEntry, self._get_oldest())
+
+    def _get_oldest(self) -> "CacheEntry":
+        return self.heap[0]
 
 
 class CacheEntry:
 
-	def __init__(self, id: int) -> None:
-		self.id = id
-		self.timestamp = time.time()
+    def __init__(self, message) -> None:
+        self.id = self._extract_id(message)
+        self.timestamp = time.time()
 
-	def __lt__(self, other: "CacheEntry") -> bool:
-		return self.timestamp < other.timestamp
+    # TODO: probably extracrt message['id'] once its JSON
+    def _extract_id(self, message) -> int:
+        return hash(message)
+
+    def get_id(self) -> int:
+        return self.id
+
+    def get_start_time(self) -> float:
+        return self.timestamp
+
+    def __lt__(self, other: "CacheEntry") -> bool:
+        return self.timestamp < other.timestamp
+
+    def __eq__(self, other: "CacheEntry") -> bool:
+        return self.id == other.id
 
 
+# The idea is to have a single Timer thread that will print when the oldest message has expired
+# Using a Timer thread since they can be cancelled, apparently threads can't be killed
+# This is just an interface for the message queue to use
 class MessageCache:
-	LIFETIME_SECONDS = 60
 
-	def __init__(self) -> None:
-		self.heap = []
-		heapify(self.heap)
-		# will have one thread that just sleeps until the oldest entry hits wakeup time
-		# if its responded to, kill the thread and make a new wakeup thread for the next oldest entry
-		self.wakeup_thread = None
+    def __init__(self) -> None:
+        self.heap = Heap()
 
-	def add_sent_message(self, message: str) -> None:
-		msg_obj = CacheEntry(MessageCache.hash(message))
-		heappush(self.heap, msg_obj)
+    def add_sent_message(self, message) -> None:
+        self.heap.add(message)
 
-	def receive_message(self, message: str) -> bool:
-		msg_id = MessageCache.hash(message)
-		# remove corresponding msg from heap while keeping it a heap
-		# 	have to replace it, then sink it?
-		# 	or maybe just remove it and then call heapify? less efficient but easier
-
-		# update next invalidation time
-		
-		# spawn a thread/kill them for wakeups? if its the oldest?
-		pass
-
-	def get_oldest_message(self) -> CacheEntry:
-		return self.heap[0]
-
-	def get_invalidation_time(self, entry: CacheEntry) -> float:
-		return entry.timestamp + self.LIFETIME_SECONDS
-
-	def get_next_invalidation_time(self) -> float:
-		return self.get_invalidation_time(self.heap[0])
-
-	def hash(self, message: str) -> int:
-		return hash(message)
+    def receive_message(self, message):
+        self.heap.remove(message)
