@@ -50,6 +50,9 @@ class Heap:
         heapify(self.heap)
         self.wakeup_thread = WakeupThread()
 
+    def _get_oldest(self) -> "CacheEntry":
+        return self.heap[0]
+
     def add(self, message) -> None:
         entryObj = CacheEntry(message)
         heappush(self.heap, entryObj)
@@ -60,9 +63,6 @@ class Heap:
         removedEntry = self.heap.pop(self.heap.index(searchObj))
         heapify(self.heap)
         self.wakeup_thread.observe_remove_entry(removedEntry, self._get_oldest())
-
-    def _get_oldest(self) -> "CacheEntry":
-        return self.heap[0]
 
 
 class CacheEntry:
