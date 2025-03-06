@@ -5,18 +5,15 @@ from threading import Timer
 # The idea is to have a single Timer thread that will print when the oldest message has expired
 #   Using a Timer thread since they can be cancelled, apparently threads can't be killed
 # Use a heap for cache so you know the oldest message
-# TODO: After invalidating, need to start considering the next oldest entry
-#   Idea 1: Maybe start a thread for each entry and kill each one? a lot of overhead
-#   Idea 2: Create a method in Heap class to pop the heap and handle replacement
-#       - Can pass it to the invalidation_thread function and it can call it after printing
 # TODO: Need to add unique id to messages from the DeathStarBench message queue, and integrate with MessageCache
 # TODO: Need to update the CacheEntry _extract_id method to work with JSON
 
 
 # Called with threading.Timer
 # Make it do something besides print? How??
-def invalidation_thread(name) -> None:
+def invalidation_thread(name, post_invalidation_function) -> None:
     print(f"{name} failed to receive response in time")
+    post_invalidation_function()
 
 
 # Represents a single entry in the cache
@@ -49,19 +46,21 @@ class CacheEntry:
 # Manages the sleeping thread
 # Can observe the stream of entries that are added to or removed from the heap
 #   If heap tells you oldest entry, can decide when to kill the sleeper and replace it with next entry
+# Also oberserves invalidations so it can reset the thread
 class WakeupThread:
     LIFETIME_SECONDS = 60
 
-    def __init__(self) -> None:
+    def __init__(self, invalidation_function) -> None:
         self.wakeup_thread: None | Timer = None
         self.wakeup_id: None | int = None
+        self.invalidation_function = invalidation_function
 
     def _start_timer(self, entry: CacheEntry) -> None:
         self.wakeup_id = entry.get_id()
         self.wakeup_thread = Timer(
             self._remaining_time(entry.get_start_time()),
             invalidation_thread,
-            args=[self.wakeup_id],
+            args=[self.wakeup_id, self.invalidation_function],
         )
         self.wakeup_thread.start()
 
@@ -82,8 +81,13 @@ class WakeupThread:
             self._cancel_timer()
             self._start_timer(next)
 
+    def observe_invalidation(self, next_entry: CacheEntry) -> None:
+        self._start_timer(next_entry)  # handles reset of private variables
+
 
 # The heap is a min-heap, so the oldest message is at the top
+# Standard add, remove
+# Also has a method to invalidate the oldest message, but called by invalidation function
 # CacheEntry implements __lt__ so the heap can compare objects
 # CacheEntry implements __eq__ so we can remove objects from the heap
 class Heap:
@@ -91,7 +95,12 @@ class Heap:
     def __init__(self) -> None:
         self.heap: list[CacheEntry] = []
         heapify(self.heap)
-        self.wakeup_thread = WakeupThread()
+        self.wakeup_thread = WakeupThread(self._invalidate_oldest)
+
+    def _invalidate_oldest(self) -> None:
+        heappop(self.heap)
+        next_oldest = self._get_oldest()
+        self.wakeup_thread.observe_invalidation(next_oldest)
 
     def _get_oldest(self) -> CacheEntry:
         return self.heap[0]
