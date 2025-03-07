@@ -2,16 +2,16 @@ from cache import *
 import constants
 
 
-def test_heap():
+def test_queue():
     prior_count = constants.invalidation_count
     oldest_time = time.time()
     cache = MessageCache()
     for i in range(10):
         # print("added message", i)
         cache.add_sent_message(i)
-    cache.heap.wakeup_thread._cancel_timer()
-    while cache.heap.heap:
-        popped = heappop(cache.heap.heap)
+    cache.queue.wakeup_thread._cancel_timer()
+    while cache.queue.queue:
+        popped = cache.queue.queue.pop(0)
         # print("popped", popped.get_start_time())
         assert popped.get_start_time() > oldest_time
         oldest_time = popped.get_start_time()
@@ -22,7 +22,7 @@ def test_cancel():
     prior_count = constants.invalidation_count
     cache = MessageCache()
     cache.add_sent_message(1)
-    cache.heap.wakeup_thread._cancel_timer()
+    cache.queue.wakeup_thread._cancel_timer()
     time.sleep(LIFETIME)
     assert constants.invalidation_count == prior_count == 0
 
@@ -37,7 +37,7 @@ def test_invalidating_thread():
     assert (
         constants.invalidation_count == prior_count + 1
     ), f"constants.invalidation_count: {constants.invalidation_count}, prior_count: {prior_count}"
-    assert cache.heap.heap == []
+    assert cache.queue.queue == []
 
 
 def test_2_invalidating_thread():
@@ -52,12 +52,15 @@ def test_2_invalidating_thread():
     assert (
         constants.invalidation_count == prior_count + 1
     ), f"constants.invalidation_count: {constants.invalidation_count}, prior_count: {prior_count}"
-    assert len(cache.heap.heap) == 1 and cache.heap.heap[0].get_id() == 2
+    assert len(cache.queue.queue) == 1 and cache.queue.queue[0].get_id() == 2
     time.sleep(LIFETIME)
+    assert (
+        constants.invalidation_count == prior_count + 2
+    ), f"constants.invalidation_count: {constants.invalidation_count}, prior_count: {prior_count}"
 
 
 if __name__ == "__main__":
-    test_heap()
+    test_queue()
     print("test 1 done")
 
     test_cancel()

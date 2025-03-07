@@ -1,11 +1,10 @@
-from heapq import *
 import time
 from threading import Timer
 from constants import *
 
 # The idea is to have a single Timer thread that will print when the oldest message has expired
 #   Using a Timer thread since they can be cancelled, apparently threads can't be killed
-# Use a heap for cache so you know the oldest message
+# Use a queue for cache so you know the oldest message
 # TODO: Need to add unique id to messages from the DeathStarBench message queue, and integrate with MessageCache
 # TODO: Need to update the CacheEntry _extract_id method to work with JSON
 
@@ -13,7 +12,6 @@ from constants import *
 # Represents a single entry in the cache
 # We only want the message's ID and the time it was sent
 # If it's a message received, we will just ignore it's timestamp - not great but good enough for now
-# Python's built in heap uses __lt__ and __eq__ to compare objects, so do it for the heap
 class CacheEntry:
 
     def __init__(self, message) -> None:
@@ -30,25 +28,19 @@ class CacheEntry:
     def get_start_time(self) -> float:
         return self.timestamp
 
-    def __lt__(self, other: "CacheEntry") -> bool:
-        return self.timestamp < other.timestamp
-
-    def __eq__(self, other: "CacheEntry") -> bool:
-        return self.id == other.id
-
 
 # Manages the sleeping thread
-# Can observe the stream of entries that are added to or removed from the heap
-#   If heap tells you oldest entry, can decide when to kill the sleeper and replace it with next entry
+# Can observe the stream of entries that are added to or removed from the queue
+#   If queue tells you oldest entry, can decide when to kill the sleeper and replace it with next entry
 # Also oberserves invalidations so it can reset the thread
 class WakeupThread:
 
-    def __init__(self, invalidate_oldest_heap) -> None:
+    def __init__(self, invalidate_oldest_queue_entry) -> None:
         # self.wakeup_thread: None | Timer = None
         # self.wakeup_id: None | int = None
         self.wakeup_thread = None
         self.wakeup_id = None
-        self.invalidate_oldest_heap = invalidate_oldest_heap
+        self.invalidate_oldest_queue_entry = invalidate_oldest_queue_entry
 
     def _start_timer(self, entry: CacheEntry) -> None:
         self.wakeup_id = entry.get_id()
@@ -70,7 +62,7 @@ class WakeupThread:
 
     def _call_invalidation_thread(self) -> None:
         invalidation_thread(self.wakeup_id)
-        self.invalidate_oldest_heap()
+        self.invalidate_oldest_queue_entry()
 
     def observe_new_entry(self, entry: CacheEntry) -> None:
         if self.wakeup_thread is None:
@@ -95,38 +87,33 @@ class WakeupThread:
             self.wakeup_id = None
 
 
-# The heap is a min-heap, so the oldest message is at the top
-# Standard add, remove
+# The queue is ordered by time
 # Also has a method to invalidate the oldest message, but called by invalidation function
-# CacheEntry implements __lt__ so the heap can compare objects
-# CacheEntry implements __eq__ so we can remove objects from the heap
-class Heap:
+class Queue:
 
     def __init__(self) -> None:
-        self.heap: list[CacheEntry] = []
-        heapify(self.heap)
-        self.wakeup_thread = WakeupThread(self._invalidate_oldest_heap)
+        self.queue: list[CacheEntry] = []
+        self.wakeup_thread = WakeupThread(self._invalidate_oldest_queue_entry)
 
-    def _invalidate_oldest_heap(self) -> None:
-        heappop(self.heap)
+    def _invalidate_oldest_queue_entry(self) -> None:
+        self.queue.pop(0)
         next_oldest = self._get_oldest()
         self.wakeup_thread.observe_invalidation(next_oldest)
 
     # def _get_oldest(self) -> CacheEntry | None:
     def _get_oldest(self):
-        if self.heap:
-            return self.heap[0]
+        if self.queue:
+            return self.queue[0]
         return None
 
     def add(self, message) -> None:
         entryObj = CacheEntry(message)
-        heappush(self.heap, entryObj)
+        self.queue.append(entryObj)
         self.wakeup_thread.observe_new_entry(entryObj)
 
     def remove(self, message) -> None:
         searchObj = CacheEntry(message)
-        removedEntry = self.heap.pop(self.heap.index(searchObj))
-        heapify(self.heap)
+        removedEntry = self.queue.pop(self.queue.index(searchObj))  # Can binary search
         self.wakeup_thread.observe_remove_entry(removedEntry, self._get_oldest())
 
 
@@ -134,10 +121,10 @@ class Heap:
 class MessageCache:
 
     def __init__(self) -> None:
-        self.heap = Heap()
+        self.queue = Queue()
 
     def add_sent_message(self, message) -> None:
-        self.heap.add(message)
+        self.queue.add(message)
 
     def receive_message(self, message):
-        self.heap.remove(message)
+        self.queue.remove(message)
