@@ -20,7 +20,7 @@ class CacheEntry:
 
     # TODO: probably extracrt message['id'] once its JSON
     def _extract_id(self, message) -> int:
-        return hash(message['id'])
+        return message['id']
 
     def get_id(self) -> int:
         return self.id

@@ -15,6 +15,7 @@ import logging
 from .ttypes import *
 from thrift.Thrift import TProcessor
 from thrift.transport import TTransport
+from cache import MessageCache
 all_structs = []
 
 
@@ -36,6 +37,7 @@ class Client(Iface):
         if oprot is not None:
             self._oprot = oprot
         self._seqid = 0
+        self.cache = MessageCache()
 
     def UploadUniqueId(self, req_id, post_type, carrier):
         """
@@ -45,6 +47,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "post_type": post_type,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadUniqueId(req_id, post_type, carrier)
         return self.recv_UploadUniqueId()
 
@@ -70,6 +78,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)  
             return result.success
         if result.se is not None:
             raise result.se

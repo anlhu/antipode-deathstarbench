@@ -15,6 +15,7 @@ import logging
 from .ttypes import *
 from thrift.Thrift import TProcessor
 from thrift.transport import TTransport
+from cache import MessageCache
 all_structs = []
 
 
@@ -28,6 +29,7 @@ class Client(Iface):
         if oprot is not None:
             self._oprot = oprot
         self._seqid = 0
+
 
 
 class Processor(Iface, TProcessor):

@@ -15,6 +15,7 @@ import logging
 from .ttypes import *
 from thrift.Thrift import TProcessor
 from thrift.transport import TTransport
+from cache import MessageCache
 all_structs = []
 
 
@@ -46,6 +47,7 @@ class Client(Iface):
         if oprot is not None:
             self._oprot = oprot
         self._seqid = 0
+        self.cache = MessageCache()
 
     def UploadUrls(self, req_id, urls, carrier):
         """
@@ -55,6 +57,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "urls": urls,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadUrls(req_id, urls, carrier)
         return self.recv_UploadUrls()
 
@@ -80,6 +88,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)  
             return result.success
         if result.se is not None:
             raise result.se
@@ -93,6 +103,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "shortened_urls": shortened_urls,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_GetExtendedUrls(req_id, shortened_urls, carrier)
         return self.recv_GetExtendedUrls()
 
@@ -118,6 +134,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)  
             return result.success
         if result.se is not None:
             raise result.se

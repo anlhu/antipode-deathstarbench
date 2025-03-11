@@ -15,6 +15,7 @@ import logging
 from .ttypes import *
 from thrift.Thrift import TProcessor
 from thrift.transport import TTransport
+from cache import MessageCache
 all_structs = []
 
 
@@ -100,6 +101,7 @@ class Client(Iface):
         if oprot is not None:
             self._oprot = oprot
         self._seqid = 0
+        self.cache = MessageCache()
 
     def GetFollowers(self, req_id, user_id, carrier):
         """
@@ -109,6 +111,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_id": user_id,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_GetFollowers(req_id, user_id, carrier)
         return self.recv_GetFollowers()
 
@@ -134,6 +142,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)   
             return result.success
         if result.se is not None:
             raise result.se
@@ -147,6 +157,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_id": user_id,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_GetFollowees(req_id, user_id, carrier)
         return self.recv_GetFollowees()
 
@@ -172,6 +188,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)  
             return result.success
         if result.se is not None:
             raise result.se
@@ -186,6 +204,13 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_id": user_id,
+            "followee_id": followee_id,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_Follow(req_id, user_id, followee_id, carrier)
         return self.recv_Follow()
 
@@ -212,6 +237,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)  
             return result.success
         if result.se is not None:
             raise result.se
@@ -226,6 +253,13 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_id": user_id,
+            "followee_id": followee_id,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_Unfollow(req_id, user_id, followee_id, carrier)
         return self.recv_Unfollow()
 
@@ -252,6 +286,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)  
             return result.success
         if result.se is not None:
             raise result.se
@@ -266,6 +302,13 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_usernmae": user_usernmae,
+            "followee_username": followee_username,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_FollowWithUsername(req_id, user_usernmae, followee_username, carrier)
         return self.recv_FollowWithUsername()
 
@@ -292,6 +335,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)  
             return result.success
         if result.se is not None:
             raise result.se
@@ -306,6 +351,13 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_usernmae": user_usernmae,
+            "followee_username": followee_username,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UnfollowWithUsername(req_id, user_usernmae, followee_username, carrier)
         return self.recv_UnfollowWithUsername()
 
@@ -332,6 +384,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)  
             return result.success
         if result.se is not None:
             raise result.se
@@ -345,6 +399,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_id": user_id,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_InsertUser(req_id, user_id, carrier)
         return self.recv_InsertUser()
 
@@ -370,6 +430,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)  
             return result.success
         if result.se is not None:
             raise result.se

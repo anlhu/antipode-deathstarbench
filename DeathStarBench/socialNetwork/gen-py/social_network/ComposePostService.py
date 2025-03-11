@@ -87,6 +87,7 @@ class Client(Iface):
         if oprot is not None:
             self._oprot = oprot
         self._seqid = 0
+        self.cache = MessageCache()
 
     def UploadText(self, req_id, text, carrier):
         """
@@ -128,7 +129,7 @@ class Client(Iface):
         iprot.readMessageEnd()
         if result.success is not None:
             message = {"id": result.success.req_id}
-            self.cache.queue.remove(message)
+            self.cache.receive_message(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -174,7 +175,7 @@ class Client(Iface):
         iprot.readMessageEnd()
         if result.success is not None:
             message = {"id": result.success.req_id}
-            self.cache.queue.remove(message)
+            self.cache.receive_message(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -223,7 +224,7 @@ class Client(Iface):
         iprot.readMessageEnd()
         if result.success is not None:
             message = {"id": result.success.req_id}
-            self.cache.queue.remove(message)
+            self.cache.receive_message(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -269,7 +270,7 @@ class Client(Iface):
         iprot.readMessageEnd()
         if result.success is not None:
             message = {"id": result.success.req_id}
-            self.cache.queue.remove(message)
+            self.cache.receive_message(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -315,7 +316,7 @@ class Client(Iface):
         iprot.readMessageEnd()
         if result.success is not None:
             message = {"id": result.success.req_id}
-            self.cache.queue.remove(message)
+            self.cache.receive_message(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -361,7 +362,7 @@ class Client(Iface):
         iprot.readMessageEnd()
         if result.success is not None:
             message = {"id": result.success.req_id}
-            self.cache.queue.remove(message)
+            self.cache.receive_message(message)
             return result.success
         if result.se is not None:
             raise result.se

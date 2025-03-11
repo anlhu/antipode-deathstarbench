@@ -15,6 +15,7 @@ import logging
 from .ttypes import *
 from thrift.Thrift import TProcessor
 from thrift.transport import TTransport
+from cache import MessageCache
 all_structs = []
 
 
@@ -56,6 +57,7 @@ class Client(Iface):
         if oprot is not None:
             self._oprot = oprot
         self._seqid = 0
+        self.cache = MessageCache()
 
     def StorePost(self, req_id, post, carrier):
         """
@@ -65,6 +67,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "post": post,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_StorePost(req_id, post, carrier)
         return self.recv_StorePost()
 
@@ -90,6 +98,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)            
             return result.success
         if result.se is not None:
             raise result.se
@@ -103,6 +113,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "post_id": post_id,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_ReadPost(req_id, post_id, carrier)
         return self.recv_ReadPost()
 
@@ -128,6 +144,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)     
             return result.success
         if result.se is not None:
             raise result.se
@@ -141,6 +159,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "post_id": post_ids,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_ReadPosts(req_id, post_ids, carrier)
         return self.recv_ReadPosts()
 
@@ -166,6 +190,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)     
             return result.success
         if result.se is not None:
             raise result.se

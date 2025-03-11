@@ -15,6 +15,7 @@ import logging
 from .ttypes import *
 from thrift.Thrift import TProcessor
 from thrift.transport import TTransport
+from cache import MessageCache
 all_structs = []
 
 
@@ -95,6 +96,7 @@ class Client(Iface):
         if oprot is not None:
             self._oprot = oprot
         self._seqid = 0
+        self.cache = MessageCache()
 
     def RegisterUser(self, req_id, first_name, last_name, username, password, carrier):
         """
@@ -107,6 +109,15 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "first_name": first_name,
+            "last_name": last_name,
+            "username": username,
+            "password": password,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_RegisterUser(req_id, first_name, last_name, username, password, carrier)
         return self.recv_RegisterUser()
 
@@ -135,6 +146,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message) 
             return result.success
         if result.se is not None:
             raise result.se
@@ -152,6 +165,16 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "first_name": first_name,
+            "last_name": last_name,
+            "username": username,
+            "password": password,
+            "user_id": user_id,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
         return self.recv_RegisterUserWithId()
 
@@ -181,6 +204,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message) 
             return result.success
         if result.se is not None:
             raise result.se
@@ -195,6 +220,13 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "username": username,
+            "password": password,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_Login(req_id, username, password, carrier)
         return self.recv_Login()
 
@@ -221,6 +253,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message) 
             return result.success
         if result.se is not None:
             raise result.se
@@ -235,6 +269,13 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_id": user_id,
+            "username": username,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadCreatorWithUserId(req_id, user_id, username, carrier)
         return self.recv_UploadCreatorWithUserId()
 
@@ -261,6 +302,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message) 
             return result.success
         if result.se is not None:
             raise result.se
@@ -274,6 +317,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "username": username,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadCreatorWithUsername(req_id, username, carrier)
         return self.recv_UploadCreatorWithUsername()
 
@@ -299,6 +348,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message) 
             return result.success
         if result.se is not None:
             raise result.se
@@ -312,6 +363,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "username": username,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_GetUserId(req_id, username, carrier)
         return self.recv_GetUserId()
 
@@ -337,6 +394,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message) 
             return result.success
         if result.se is not None:
             raise result.se

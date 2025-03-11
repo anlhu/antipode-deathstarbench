@@ -15,6 +15,7 @@ import logging
 from .ttypes import *
 from thrift.Thrift import TProcessor
 from thrift.transport import TTransport
+from cache import MessageCache
 all_structs = []
 
 
@@ -50,6 +51,7 @@ class Client(Iface):
         if oprot is not None:
             self._oprot = oprot
         self._seqid = 0
+        self.cache = MessageCache()
 
     def WriteUserTimeline(self, req_id, post_id, user_id, timestamp, carrier):
         """
@@ -61,6 +63,14 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "post_id": post_id,
+            "user_id": user_id,
+            "timestamp": timestamp,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_WriteUserTimeline(req_id, post_id, user_id, timestamp, carrier)
         return self.recv_WriteUserTimeline()
 
@@ -88,6 +98,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message) 
             return result.success
         if result.se is not None:
             raise result.se
@@ -103,6 +115,14 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_id": user_id,
+            "start": start,
+            "stop": stop,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_ReadUserTimeline(req_id, user_id, start, stop, carrier)
         return self.recv_ReadUserTimeline()
 
@@ -130,6 +150,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message) 
             return result.success
         if result.se is not None:
             raise result.se

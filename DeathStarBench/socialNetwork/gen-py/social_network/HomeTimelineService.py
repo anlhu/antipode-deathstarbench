@@ -9,6 +9,7 @@
 from thrift.Thrift import TType, TMessageType, TFrozenDict, TException, TApplicationException
 from thrift.protocol.TProtocol import TProtocolException
 from thrift.TRecursive import fix_spec
+from cache import MessageCache
 
 import sys
 import logging
@@ -38,6 +39,7 @@ class Client(Iface):
         if oprot is not None:
             self._oprot = oprot
         self._seqid = 0
+        self.cache = MessageCache()
 
     def ReadHomeTimeline(self, req_id, user_id, start, stop, carrier):
         """
@@ -49,6 +51,14 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "user_id": user_id,
+            "start": start,
+            "stop": stop,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_ReadHomeTimeline(req_id, user_id, start, stop, carrier)
         return self.recv_ReadHomeTimeline()
 
@@ -76,6 +86,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.receive_message(message)
             return result.success
         if result.se is not None:
             raise result.se
