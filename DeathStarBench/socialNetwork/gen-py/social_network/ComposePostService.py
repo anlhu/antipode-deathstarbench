@@ -16,7 +16,7 @@ from .ttypes import *
 from thrift.Thrift import TProcessor
 from thrift.transport import TTransport
 all_structs = []
-
+from cache import MessageCache
 
 class Iface(object):
     def UploadText(self, req_id, text, carrier):
@@ -96,6 +96,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "text": text,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadText(req_id, text, carrier)
         return self.recv_UploadText()
 
@@ -121,6 +127,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.queue.remove(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -134,6 +142,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "media": media,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadMedia(req_id, media, carrier)
         return self.recv_UploadMedia()
 
@@ -159,6 +173,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.queue.remove(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -173,6 +189,13 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "post_id": post_id,
+            "post_type" : post_type,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadUniqueId(req_id, post_id, post_type, carrier)
         return self.recv_UploadUniqueId()
 
@@ -199,6 +222,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.queue.remove(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -212,6 +237,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "creator": creator,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadCreator(req_id, creator, carrier)
         return self.recv_UploadCreator()
 
@@ -237,6 +268,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.queue.remove(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -250,6 +283,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "urls": urls,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadUrls(req_id, urls, carrier)
         return self.recv_UploadUrls()
 
@@ -275,6 +314,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.queue.remove(message)
             return result.success
         if result.se is not None:
             raise result.se
@@ -288,6 +329,12 @@ class Client(Iface):
          - carrier
 
         """
+        message = {
+            "id": req_id,
+            "urls": urls,
+            "carrier": carrier
+        }
+        self.cache.add_sent_message(message)
         self.send_UploadUserMentions(req_id, user_mentions, carrier)
         return self.recv_UploadUserMentions()
 
@@ -313,6 +360,8 @@ class Client(Iface):
         result.read(iprot)
         iprot.readMessageEnd()
         if result.success is not None:
+            message = {"id": result.success.req_id}
+            self.cache.queue.remove(message)
             return result.success
         if result.se is not None:
             raise result.se
