@@ -1,0 +1,5 @@
+1. Set up GCP instance (N2, don't be stingy with the compute resources) on Ubuntu 24.
+2. Generate a credentials.json for your service account in GCP
+3. Move credentials.json to the gcp folder
+4. Enable Artifact Registry API in GCP
+5. Then follow ALL of the steps in the Readme for GCP deployment
