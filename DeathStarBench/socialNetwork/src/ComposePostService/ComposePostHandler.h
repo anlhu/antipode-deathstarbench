@@ -22,6 +22,7 @@
 #include "../antipode.h"
 #include "../RedisClient.h"
 #include "../ThriftClient.h"
+#include "../cache.h"
 #include "RabbitmqClient.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
@@ -84,6 +85,7 @@ class ComposePostHandler : public ComposePostServiceIf {
   std::exception_ptr _rabbitmq_teptr;
   std::exception_ptr _post_storage_teptr;
   std::exception_ptr _user_timeline_teptr;
+  MessageCache* cache;
 
   void _ComposeAndUpload(int64_t req_id,
       const std::map<std::string, std::string> & carrier);
@@ -122,6 +124,7 @@ ComposePostHandler::ComposePostHandler(
   _user_timeline_teptr = nullptr;
   _zone = zone;
   _interest_zones = interest_zones;
+  cache = new MessageCache();
 }
 
 // Launch the pool with as much threads as cores
@@ -949,6 +952,9 @@ void ComposePostHandler::_UploadHomeTimelineHelper(
       ", \"user_mentions_id\": " + user_mentions_id_str +
       ", \"cscope_str\": " + cscope.to_json() +
       ", \"carrier\": " + carrier_str + " }";
+
+  Message msg = {req_id, text, "sms"};
+  cache->addSentMessage()
 
   try {
     auto rabbitmq_client_wrapper = _rabbitmq_client_pool->Pop();

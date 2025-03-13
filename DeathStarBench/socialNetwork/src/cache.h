@@ -19,7 +19,8 @@ void invalidation_thread(int id);
 // Message structure
 struct Message {
     int id;
-    std::string timestamp;
+    std::string text;
+    std::string carrier;
 };
 
 // Represents a single entry in the cache
