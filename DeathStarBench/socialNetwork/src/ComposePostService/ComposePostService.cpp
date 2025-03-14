@@ -84,5 +84,6 @@ int main(int argc, char *argv[]) {
   outfile.close();
 
   std::cout << "Starting the compose-post-service server ..." << std::endl;
+  std::cout << "hello test" << std::endl;
   server.serve();
 }
