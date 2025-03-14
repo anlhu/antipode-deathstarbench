@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <unordered_map>
 #include <mutex>
+#include <condition_variable>
 #include <memory>
 #include <string>
 
 // Assuming this would be in constants.h
-const double LIFETIME = 60.0; // Example value, should match your actual constant
+// const double LIFETIME = 60.0; // Example value, should match your actual constant
+const double LIFETIME = 3.0; // DEBUGGING VALUE
 
 // Forward declaration
 void invalidation_thread(int id);
@@ -25,7 +27,7 @@ struct Message {
 
 // Represents a single entry in the cache
 class CacheEntry {
-private:
+public:
     int id;
     double timestamp;
 
@@ -34,10 +36,9 @@ private:
         return message.id;
     }
 
-public:
     explicit CacheEntry(const Message& message) {
         id = extractId(message);
-        timestamp = std::time(nullptr);
+        timestamp = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
     }
 
     int getId() const {
@@ -55,16 +56,18 @@ public:
 
 // Class to manage timer threads for cache invalidation
 class WakeupThread {
-private:
+public:
     std::unique_ptr<std::thread> wakeupThread;
     int wakeupId;
     std::function<void()> invalidateOldestQueueEntry;
     std::mutex mutex;
+    std::condition_variable cv;
     bool isRunning;
+    bool cancelRequested;
 
     // Calculate remaining time before expiration
     double remainingTime(double startTime) {
-        double elapsedTime = std::time(nullptr) - startTime;
+        double elapsedTime = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() - startTime;
         return LIFETIME - elapsedTime;
     }
 
@@ -78,12 +81,19 @@ private:
         
         wakeupId = entry.getId();
         isRunning = true;
+        cancelRequested = false;
         
         wakeupThread = std::make_unique<std::thread>([this, entry]() {
+            std::unique_lock<std::mutex> lock(mutex);
             double sleepTime = remainingTime(entry.getStartTime());
-            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleepTime * 1000)));
+            if (cv.wait_for(lock, std::chrono::milliseconds(static_cast<int>(sleepTime * 1000)), [this] { return cancelRequested; })) {
+                // Cancelled
+                std::cout << "THREAD: Timer cancelled for ID: "  << std::endl;
+                return;
+            }
             
             if (isRunning) {
+                std::cout << "THREAD: calling invalidation thread" << std::endl;
                 callInvalidationThread();
             }
         });
@@ -91,13 +101,17 @@ private:
 
     // Cancel current timer
     void cancelTimer() {
+        std::cout << "Timer cancelled called for ID: " << wakeupId << std::endl;
         std::lock_guard<std::mutex> lock(mutex);
         if (wakeupThread && isRunning) {
             isRunning = false;
+            cancelRequested = true;
+            cv.notify_all();
             if (wakeupThread->joinable()) {
                 wakeupThread->join();
             }
             wakeupThread.reset();
+            std::cout << "Timer successfully cancelled for ID: " << wakeupId << std::endl;
         }
     }
 
@@ -107,9 +121,8 @@ private:
         invalidateOldestQueueEntry();
     }
 
-public:
     explicit WakeupThread(std::function<void()> invalidateFunc) 
-        : wakeupId(0), invalidateOldestQueueEntry(invalidateFunc), isRunning(false) {}
+        : wakeupId(0), invalidateOldestQueueEntry(invalidateFunc), isRunning(false), cancelRequested(false) {}
 
     ~WakeupThread() {
         cancelTimer();
@@ -143,14 +156,15 @@ public:
 
 // Queue class to manage cache entries
 class Queue {
-private:
+public:
     std::vector<CacheEntry> queue;
     std::unique_ptr<WakeupThread> wakeupThread;
     std::mutex queueMutex;
 
     // Get the oldest entry in the queue
     const CacheEntry* getOldest() {
-        std::lock_guard<std::mutex> lock(queueMutex);
+        // std::lock_guard<std::mutex> lock(queueMutex);
+        std::cout << "Getting oldest entry" << std::endl;
         if (!queue.empty()) {
             return &queue[0];
         }
@@ -159,15 +173,21 @@ private:
 
     // Invalidate the oldest entry in the queue
     void invalidateOldestQueueEntry() {
+        std::cout << "Invalidating oldest entry" << std::endl;
+        std::cout << queue.empty() << std::endl;
+
         std::lock_guard<std::mutex> lock(queueMutex);
         if (!queue.empty()) {
+            std::cout << "starting invalidation" << std::endl;
             queue.erase(queue.begin());
+            std::cout << "erased" << std::endl;
             const CacheEntry* nextOldest = getOldest();
+            std::cout << "observing invalidation" << std::endl;
             wakeupThread->observeInvalidation(nextOldest);
+            std::cout << "observed invalidation" << std::endl;
         }
     }
 
-public:
     Queue() {
         wakeupThread = std::make_unique<WakeupThread>(
             std::bind(&Queue::invalidateOldestQueueEntry, this)
@@ -203,10 +223,9 @@ public:
 
 // Interface class for the message queue
 class MessageCache {
-private:
+public:
     Queue queue;
 
-public:
     MessageCache() = default;
 
     void addSentMessage(const Message& message) {
@@ -218,8 +237,11 @@ public:
     }
 };
 
+int invalidation_count = 0;
+
 // Implementation of the invalidation_thread function (placeholder)
 void invalidation_thread(int id) {
     std::cout << "Message with ID: " << id << " has expired." << std::endl;
+    invalidation_count++;
     // Additional logic for handling expired messages
 }
