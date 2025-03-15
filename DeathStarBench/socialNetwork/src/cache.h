@@ -11,7 +11,8 @@
 extern int invalidation_count; 
 void invalidation_thread(int id);
 
-const double LIFETIME = 5.0; // Debugging value
+// const double LIFETIME = 5.0; // Debugging value
+const double LIFETIME = 60.0; // Real value: Need to figure out a good one
 
 // Message structure
 struct Message {
