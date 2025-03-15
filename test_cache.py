@@ -2,32 +2,27 @@ from cache import *
 import constants
 
 
-def test_queue():
-    prior_count = constants.invalidation_count
-    oldest_time = time.time()
-    cache = MessageCache()
-    for i in range(10):
-        # print("added message", i)
-        cache.add_sent_message(i)
-    cache.queue.wakeup_thread._cancel_timer()
-    while cache.queue.queue:
-        popped = cache.queue.queue.pop(0)
-        # print("popped", popped.get_start_time())
-        assert popped.get_start_time() > oldest_time
-        oldest_time = popped.get_start_time()
-    assert constants.invalidation_count == prior_count == 0
-
-
+# test killing a sleeper thread means it doesnt update the invalidation count
 def test_cancel():
     prior_count = constants.invalidation_count
     cache = MessageCache()
     cache.add_sent_message(1)
-    cache.queue.wakeup_thread._cancel_timer()
-    time.sleep(LIFETIME)
+    cache.cache.collection[1].kill_thread()
+    time.sleep(LIFETIME + 1)
     assert constants.invalidation_count == prior_count == 0
 
 
-def test_invalidating_thread():
+def test_receive_message():
+    prior_count = constants.invalidation_count
+    cache = MessageCache()
+    cache.add_sent_message(1)
+    cache.receive_message(1)
+    assert cache.cache.collection == {}
+    time.sleep(LIFETIME + 1)
+    assert constants.invalidation_count == prior_count == 0
+
+
+def test_1_timeout():
     prior_count = constants.invalidation_count
     cache = MessageCache()
     cache.add_sent_message(1)
@@ -37,10 +32,10 @@ def test_invalidating_thread():
     assert (
         constants.invalidation_count == prior_count + 1
     ), f"constants.invalidation_count: {constants.invalidation_count}, prior_count: {prior_count}"
-    assert cache.queue.queue == []
+    assert cache.cache.collection == {}, cache.cache.collection
 
 
-def test_2_invalidating_thread():
+def test_2_timeout():
     prior_count = constants.invalidation_count
     cache = MessageCache()
     cache.add_sent_message(1)
@@ -52,22 +47,23 @@ def test_2_invalidating_thread():
     assert (
         constants.invalidation_count == prior_count + 1
     ), f"constants.invalidation_count: {constants.invalidation_count}, prior_count: {prior_count}"
-    assert len(cache.queue.queue) == 1 and cache.queue.queue[0].get_id() == 2
+    assert len(cache.cache.collection) == 1 and cache.cache.collection[2]
     time.sleep(LIFETIME)
     assert (
         constants.invalidation_count == prior_count + 2
     ), f"constants.invalidation_count: {constants.invalidation_count}, prior_count: {prior_count}"
+    assert cache.cache.collection == {}, cache.cache.collection
 
 
 if __name__ == "__main__":
-    test_queue()
+    test_cancel()
     print("test 1 done")
 
-    test_cancel()
+    test_receive_message()
     print("test 2 done")
 
-    test_invalidating_thread()
+    test_1_timeout()
     print("test 3 done")
 
-    test_2_invalidating_thread()
+    test_2_timeout()
     print("test 4 done")
