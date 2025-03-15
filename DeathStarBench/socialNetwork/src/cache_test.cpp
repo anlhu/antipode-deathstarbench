@@ -1,104 +1,107 @@
 #include <iostream>
 #include <thread>
-#include <cassert>
+#include <chrono>
 #include "cache.h"
 
-void testQueue() {
-    int priorCount = invalidation_count;
-    
-    // Use std::chrono::steady_clock::now() for timestamps
-    double oldestTime = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
-    // std::cout << "Oldest time: " << oldestTime << std::endl;
-
+// Test: Killing a sleeper thread prevents invalidation
+void test_cancel() {
+    int prior_count = invalidation_count;
     MessageCache cache;
-    for (int i = 0; i < 10; ++i) {
-        Message message;
-        message.id = i;
-        cache.addSentMessage(message);
-    }
+    Message message = {1, "Test message", "Test carrier"};
+    cache.addSentMessage(message);
+    cache.cache.collection[1]->killThread();
+    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME + 1));
     
-    cache.queue.wakeupThread->cancelTimer();
-
-    while (!cache.queue.queue.empty()) {
-        auto popped = cache.queue.queue.front();
-        cache.queue.queue.erase(cache.queue.queue.begin());
-
-        // Compare time_points correctly
-        // std::cout << "Popped time: " << popped.getStartTime() << std::endl;
-        // std::cout << "Oldest time: " << oldestTime << std::endl;
-        assert(popped.getStartTime() > oldestTime);
-        oldestTime = popped.getStartTime();
+    if (invalidation_count == prior_count) {
+        std::cout << "test_cancel passed\n";
+    } else {
+        std::cout << "test_cancel failed: expected " << prior_count 
+                  << ", got " << invalidation_count << "\n";
     }
-
-    assert(invalidation_count == priorCount);
 }
 
-void testCancel() {
-    int priorCount = invalidation_count;
+// Test: Receiving a message removes it from the cache before timeout
+void test_receive_message() {
+    int prior_count = invalidation_count;
     MessageCache cache;
-    Message message;
-    message.id = 1;
-    cache.addSentMessage(message);
-    cache.queue.wakeupThread->cancelTimer();
+    cache.addSentMessage({1, "Test message", "Test carrier"});
+    cache.receiveMessage({1, "Test message", "Test carrier"});
 
-    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME));
-
-    assert(invalidation_count == priorCount);
-}
-
-void testInvalidatingThread() {
-    int priorCount = invalidation_count;
-    MessageCache cache;
-    Message message;
-    message.id = 1;
-    cache.addSentMessage(message);
-
+    bool cacheEmpty = cache.cache.collection.empty();
     std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME + 1));
 
-    std::cout << "Invalidation count: " << invalidation_count << std::endl;
-    std::cout << "Prior count: " << priorCount << std::endl;
-    assert(invalidation_count == priorCount + 1);
-    assert(cache.queue.queue.empty());
-    assert(cache.queue.wakeupThread->isRunning == false);
-    std::cout << "test 3 done" << std::endl;
+    if (cacheEmpty && invalidation_count == prior_count) {
+        std::cout << "test_receive_message passed\n";
+    } else {
+        std::cout << "test_receive_message failed\n";
+    }
 }
 
-void testTwoInvalidatingThread() {
-    int priorCount = invalidation_count;
+// Test: A single message times out and is removed
+void test_1_timeout() {
+    int prior_count = invalidation_count;
     MessageCache cache;
-    Message message1;
-    message1.id = 1;
-    cache.addSentMessage(message1);
+    cache.addSentMessage({1, "Test message", "Test carrier"});
+    
+    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME + 1));
+    
+    if (invalidation_count == prior_count + 1 && cache.cache.collection.empty()) {
+        std::cout << "test_1_timeout passed\n";
+    } else {
+        std::cout << "test_1_timeout failed\n";
+    }
+}
+
+// Test: Adding two messages, one expires before the other
+void test_2_timeout() {
+    int prior_count = invalidation_count;
+    MessageCache cache;
+    cache.addSentMessage({1, "Message 1", "Carrier 1"});
+    
     std::this_thread::sleep_for(std::chrono::seconds(2));
-    Message message2;
-    message2.id = 2;
-    cache.addSentMessage(message2);
-    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME - 2 + 1));
+    
+    cache.addSentMessage({2, "Message 2", "Carrier 2"});
+    
+    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME - 2));
+    
+    bool firstExpired = invalidation_count == prior_count + 1;
+    bool secondStillExists = cache.cache.collection.size() == 1 && cache.cache.collection.count(2);
+    
+    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME));
+    
+    bool secondExpired = invalidation_count == prior_count + 2;
+    bool cacheEmpty = cache.cache.collection.empty();
+    
+    if (firstExpired && secondStillExists && secondExpired && cacheEmpty) {
+        std::cout << "test_2_timeout passed\n";
+    } else {
+        std::cout << "test_2_timeout failed\n";
+    }
+}
 
-    std::cout << "Invalidation count: " << invalidation_count << std::endl;
-    std::cout << "Prior count: " << priorCount << std::endl;
-    assert(invalidation_count == priorCount + 1);
-    assert(cache.queue.queue.size() == 1 && cache.queue.queue.front().getId() == 2);
-
-    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME + 1));
-
-    std::cout << "Invalidation count: " << invalidation_count << std::endl;
-    std::cout << "Prior count: " << priorCount << std::endl;
-    assert(invalidation_count == priorCount + 2);
+void test_total_invalidations() {
+    if (invalidation_count == 3) {
+        std::cout << "test_total_invalidations passed\n";
+    } else {
+        std::cout << "test_total_invalidations failed\n";
+    }
 }
 
 int main() {
-    // testQueue();
-    // std::cout << "test 1 done" << std::endl;
+    std::cout << "Running test 1\n";
+    test_cancel();
 
-    // testCancel();
-    // std::cout << "test 2 done" << std::endl;
+    std::cout << "Running test 2\n";
+    test_receive_message();
+    
+    std::cout << "Running test 3\n";
+    test_1_timeout();
+    
+    std::cout << "Running test 4\n";
+    test_2_timeout();
 
-    // testInvalidatingThread();
-    // std::cout << "test 3 done" << std::endl;
-
-    testTwoInvalidatingThread();
-    std::cout << "test 4 done" << std::endl;
+    std::cout << "Running test 5\n";
+    test_total_invalidations();
 
     return 0;
 }
