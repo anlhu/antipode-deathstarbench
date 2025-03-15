@@ -13,7 +13,7 @@
 
 // Assuming this would be in constants.h
 // const double LIFETIME = 60.0; // Example value, should match your actual constant
-const double LIFETIME = 3.0; // DEBUGGING VALUE
+const double LIFETIME = 5.0; // DEBUGGING VALUE
 
 // Forward declaration
 void invalidation_thread(int id);
@@ -72,10 +72,18 @@ public:
     }
 
     // Start timer for an entry
-    void startTimer(const CacheEntry& entry) {
-        std::lock_guard<std::mutex> lock(mutex);
+    void startTimer(const CacheEntry& entry, bool haveMutex = false) {
+        std::cout << "WakeupThread: starting new timer thread for " << entry.getId() << std::endl;
+        if (!haveMutex) {
+            std::lock_guard<std::mutex> lock(mutex);
+            std::cout << "WakeupThread: lock acquired for starting new thread" << std::endl;
+        } else {
+            std::cout << "WakeupThread: already have lock for starting new thread" << std::endl;
+            // mutex.unlock();
+        }
         
         if (wakeupThread && isRunning) {
+            std::cout << "WakeupThread: killing old one" << std::endl;
             cancelTimer();
         }
         
@@ -83,48 +91,70 @@ public:
         isRunning = true;
         cancelRequested = false;
         
-        wakeupThread = std::make_unique<std::thread>([this, entry]() {
+        std::cout << "WakeupThread: actually starting new thread" << std::endl;
+        wakeupThread = std::make_unique<std::thread>([this, entry, haveMutex]() {
+            // if (!haveMutex) {
+            //     std::cout << "WakeupThread: gonna acquire this mf mutex" << std::endl;
+            //     std::unique_lock<std::mutex> lock(mutex);
+            //     std::cout << "WakeupThread: got that mf mutex" << std::endl;
+            // } else {
+            //     std::cout << "WakeupThread: already had mutex" << std::endl;
+            // }
+            std::cout << "WakeupThread: gonna acquire this mf mutex" << std::endl;
+            if (haveMutex) {
+                mutex.unlock();
+            }
             std::unique_lock<std::mutex> lock(mutex);
+            std::cout << "WakeupThread: got that mf mutex" << std::endl;
             double sleepTime = remainingTime(entry.getStartTime());
             if (cv.wait_for(lock, std::chrono::milliseconds(static_cast<int>(sleepTime * 1000)), [this] { return cancelRequested; })) {
                 // Cancelled
-                std::cout << "THREAD: Timer cancelled for ID: "  << std::endl;
+                std::cout << "WakeupThread: THREAD: Timer cancelled for ID: "  << std::endl;
                 return;
             }
             
             if (isRunning) {
-                std::cout << "THREAD: calling invalidation thread" << std::endl;
+                std::cout << "WakeupThread: THREAD: calling invalidation thread" << std::endl;
                 callInvalidationThread();
             }
+
+            std::cout << "WakeupThread: THREAD: done" << std::endl;
         });
+
+        std::cout << "WakeupThread: done starting timer" << std::endl;
     }
 
     // Cancel current timer
-    void cancelTimer() {
-        std::cout << "Timer cancelled called for ID: " << wakeupId << std::endl;
-        std::lock_guard<std::mutex> lock(mutex);
+    void cancelTimer(bool calledFromThread = false) {
+        std::cout << "WakeupThread: Timer cancel called for ID: " << wakeupId << std::endl;
+        // std::lock_guard<std::mutex> lock(mutex);
+        // std::cout << "WakeupThread: timer cancel lock acquired" << std::endl;
         if (wakeupThread && isRunning) {
+            std::cout << "WakeupThread: there is a thread running, have to kill" << std::endl;
             isRunning = false;
             cancelRequested = true;
             cv.notify_all();
-            if (wakeupThread->joinable()) {
+            if (!calledFromThread && wakeupThread->joinable()) {
                 wakeupThread->join();
+                wakeupThread.reset();
             }
-            wakeupThread.reset();
-            std::cout << "Timer successfully cancelled for ID: " << wakeupId << std::endl;
+            std::cout << "WakeupThread: Timer successfully cancelled for ID: " << wakeupId << std::endl;
         }
     }
 
     // Call invalidation function
     void callInvalidationThread() {
         invalidation_thread(wakeupId);
+        std::cout << "WakeupThread: THREAD: invalidation function done" << std::endl;
         invalidateOldestQueueEntry();
+        std::cout << "WakeupThread: THREAD: queue handling done" << std::endl;
     }
 
     explicit WakeupThread(std::function<void()> invalidateFunc) 
         : wakeupId(0), invalidateOldestQueueEntry(invalidateFunc), isRunning(false), cancelRequested(false) {}
 
     ~WakeupThread() {
+        std::cout << "WakeupThread: Destructor called" << std::endl;
         cancelTimer();
     }
 
@@ -138,7 +168,9 @@ public:
     // Observer method for removed entries
     void observeRemoveEntry(const CacheEntry& entry, const CacheEntry* next) {
         if (entry.getId() == wakeupId) {
+            std::cout << "WakeupThread: Observing a removed entry" << std::endl;
             cancelTimer();
+            std::cout << "WakeupThread: cancelTimer call done, next is: " << next << std::endl;
             if (next != nullptr) {
                 startTimer(*next);
             }
@@ -147,9 +179,12 @@ public:
 
     // Observer method for invalidations
     void observeInvalidation(const CacheEntry* nextEntry) {
-        cancelTimer();
+        std::cout << "WakeupThread: Observing an invalidation" << std::endl;
+        cancelTimer(true);
+        std::cout << "WakeupThread: timer cancelled" << std::endl;
         if (nextEntry != nullptr) {
-            startTimer(*nextEntry);
+            std::cout << "WakeupThread: starting timer after cancel" << std::endl;
+            startTimer(*nextEntry, true);
         }
     }
 };
@@ -164,7 +199,6 @@ public:
     // Get the oldest entry in the queue
     const CacheEntry* getOldest() {
         // std::lock_guard<std::mutex> lock(queueMutex);
-        std::cout << "Getting oldest entry" << std::endl;
         if (!queue.empty()) {
             return &queue[0];
         }
@@ -173,19 +207,17 @@ public:
 
     // Invalidate the oldest entry in the queue
     void invalidateOldestQueueEntry() {
-        std::cout << "Invalidating oldest entry" << std::endl;
-        std::cout << queue.empty() << std::endl;
-
+        std::cout << "Queue: " << "Invalidating oldest entry" << std::endl;
+        std::cout <<"Queue: empty?: " <<  queue.empty() << std::endl;
         std::lock_guard<std::mutex> lock(queueMutex);
         if (!queue.empty()) {
-            std::cout << "starting invalidation" << std::endl;
+            std::cout << "Queue: " << "starting invalidation" << std::endl;
             queue.erase(queue.begin());
-            std::cout << "erased" << std::endl;
             const CacheEntry* nextOldest = getOldest();
-            std::cout << "observing invalidation" << std::endl;
             wakeupThread->observeInvalidation(nextOldest);
-            std::cout << "observed invalidation" << std::endl;
+            std::cout << "Queue: " << "observed invalidation" << std::endl;
         }
+        std::cout << "Queue: " << "done" << std::endl;
     }
 
     Queue() {

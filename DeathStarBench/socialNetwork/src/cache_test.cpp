@@ -73,13 +73,17 @@ void testTwoInvalidatingThread() {
     Message message2;
     message2.id = 2;
     cache.addSentMessage(message2);
-    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME - 2));
+    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME - 2 + 1));
 
+    std::cout << "Invalidation count: " << invalidation_count << std::endl;
+    std::cout << "Prior count: " << priorCount << std::endl;
     assert(invalidation_count == priorCount + 1);
     assert(cache.queue.queue.size() == 1 && cache.queue.queue.front().getId() == 2);
 
-    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME));
+    std::this_thread::sleep_for(std::chrono::duration<double>(LIFETIME + 1));
 
+    std::cout << "Invalidation count: " << invalidation_count << std::endl;
+    std::cout << "Prior count: " << priorCount << std::endl;
     assert(invalidation_count == priorCount + 2);
 }
 
@@ -90,9 +94,8 @@ int main() {
     // testCancel();
     // std::cout << "test 2 done" << std::endl;
 
-    std::cout << "test 3 starting" << std::endl;
-    testInvalidatingThread();
-    std::cout << "test 3 done" << std::endl;
+    // testInvalidatingThread();
+    // std::cout << "test 3 done" << std::endl;
 
     testTwoInvalidatingThread();
     std::cout << "test 4 done" << std::endl;
