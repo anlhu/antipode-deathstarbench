@@ -16,6 +16,7 @@
 #include "../ThriftClient.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
+#include "../cache.h"
 
 namespace social_network {
 
@@ -31,6 +32,7 @@ class ReadHomeTimelineHandler : public HomeTimelineServiceIf {
 
   ClientPool<RedisClient> *_redis_client_pool;
   ClientPool<ThriftClient<PostStorageServiceClient>> *_post_client_pool;
+  MessageCache _message_cache;
 };
 
 ReadHomeTimelineHandler::ReadHomeTimelineHandler(
@@ -47,6 +49,16 @@ void ReadHomeTimelineHandler::ReadHomeTimeline(
     int start,
     int stop,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "ReadHomeTimeline request";
+  message.carrier = std::string("user_id:" + std::to_string(user_id) + 
+                                ",start:" + std::to_string(start) + 
+                                ",stop:" + std::to_string(stop));
+  _message_cache.addSentMessage(message);
+
+  
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -128,6 +140,10 @@ void ReadHomeTimelineHandler::ReadHomeTimeline(
   }
   _post_client_pool->Push(post_client_wrapper);
   span->Finish();
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
 
   // XTRACE("ReadHomeTimelineHandler::ReadHomeTimeline complete");
   response.baggage = GET_CURRENT_BAGGAGE().str();

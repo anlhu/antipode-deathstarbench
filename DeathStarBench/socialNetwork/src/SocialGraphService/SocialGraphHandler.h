@@ -20,6 +20,7 @@
 #include "../ThriftClient.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
+#include "../cache.h"
 
 namespace social_network {
 
@@ -54,6 +55,7 @@ class SocialGraphHandler : public SocialGraphServiceIf {
   mongoc_client_pool_t *_mongodb_client_pool;
   ClientPool<RedisClient> *_redis_client_pool;
   ClientPool<ThriftClient<UserServiceClient>> *_user_service_client_pool;
+  MessageCache _message_cache;
 };
 
 SocialGraphHandler::SocialGraphHandler(
@@ -71,6 +73,13 @@ void SocialGraphHandler::Follow(
     int64_t user_id,
     int64_t followee_id,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "Follow request";
+  message.carrier = std::string("user_id:" + std::to_string(user_id) + 
+  " follow:" + std::to_string(followee_id));
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -301,6 +310,12 @@ void SocialGraphHandler::Follow(
 
   span->Finish();
   // XTRACE("SocialGraphHandler::Follow complete");
+
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -312,6 +327,14 @@ void SocialGraphHandler::Unfollow(
     int64_t followee_id,
     const std::map<std::string, std::string> &carrier) {
 
+  
+  Message message;
+  message.id = req_id;
+  message.text = "Unfollow request";
+  message.carrier = std::string("user_id:" + std::to_string(user_id) + 
+  " unfollow:" + std::to_string(followee_id));
+  _message_cache.addSentMessage(message);
+  
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
     SET_CURRENT_BAGGAGE(Baggage::deserialize(baggage_it->second));
@@ -510,6 +533,11 @@ void SocialGraphHandler::Unfollow(
 
   span->Finish();
   // XTRACE("SocialGraphHandler::Unfollow complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -517,6 +545,12 @@ void SocialGraphHandler::Unfollow(
 void SocialGraphHandler::GetFollowers(
     UidListRpcResponse &response, const int64_t req_id, const int64_t user_id,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "GetFollowers request";
+  message.carrier = std::string("user_id:" + std::to_string(user_id));
+  _message_cache.addSentMessage(message);
 
   std::vector<int64_t> _return;
   auto baggage_it = carrier.find("baggage");
@@ -670,6 +704,11 @@ void SocialGraphHandler::GetFollowers(
   }
   span->Finish();
   // XTRACE("SocialGraphHandler::GetFollowers complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   response.result = _return;
   DELETE_CURRENT_BAGGAGE();
@@ -678,6 +717,14 @@ void SocialGraphHandler::GetFollowers(
 void SocialGraphHandler::GetFollowees(
     UidListRpcResponse& response, const int64_t req_id, const int64_t user_id,
     const std::map<std::string, std::string> &carrier) {
+
+
+  Message message;
+  message.id = req_id;
+  message.text = "GetFollowees request";
+  message.carrier = std::string("user_id:" + std::to_string(user_id));
+  _message_cache.addSentMessage(message);    
+
 
   std::vector<int64_t> _return;
   auto baggage_it = carrier.find("baggage");
@@ -834,6 +881,11 @@ void SocialGraphHandler::GetFollowees(
   }
   span->Finish();
   // XTRACE("SocialGraphHandler::GetFollowees complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   response.result = _return;
   DELETE_CURRENT_BAGGAGE();
@@ -843,6 +895,12 @@ void SocialGraphHandler::InsertUser(
     BaseRpcResponse& response,
     int64_t req_id, int64_t user_id,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "InsertUser request";
+  message.carrier = std::string("user_id:" + std::to_string(user_id));
+  _message_cache.addSentMessage(message);   
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -915,6 +973,11 @@ void SocialGraphHandler::InsertUser(
 
   span->Finish();
   // XTRACE("SocialGraphHandler::InsertUser complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -925,6 +988,14 @@ void SocialGraphHandler::FollowWithUsername(
     const std::string &user_name,
     const std::string &followee_name,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "FollowWithUsername request";
+  message.carrier = std::string("user:" + user_name + ",followee:" + followee_name);
+  _message_cache.addSentMessage(message);
+
+  
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -1031,6 +1102,11 @@ void SocialGraphHandler::FollowWithUsername(
   }
   span->Finish();
   // XTRACE("SocialGraphHandler::FollowWithUsername complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -1041,6 +1117,12 @@ void SocialGraphHandler::UnfollowWithUsername(
     const std::string &user_name,
     const std::string &followee_name,
     const std::map<std::string, std::string> &carrier) {
+      
+  Message message;
+  message.id = req_id;
+  message.text = "UnfollowWithUsername request";
+  message.carrier = std::string("user:" + user_name + ",followee:" + followee_name);
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -1147,6 +1229,11 @@ void SocialGraphHandler::UnfollowWithUsername(
   }
   span->Finish();
   // XTRACE("SocialGraphService::UnfollowWithUsername complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+  
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }

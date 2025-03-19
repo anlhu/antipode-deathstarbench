@@ -85,7 +85,7 @@ class ComposePostHandler : public ComposePostServiceIf {
   std::exception_ptr _rabbitmq_teptr;
   std::exception_ptr _post_storage_teptr;
   std::exception_ptr _user_timeline_teptr;
-  MessageCache* cache;
+  MessageCache _message_cache; 
 
   void _ComposeAndUpload(int64_t req_id,
       const std::map<std::string, std::string> & carrier);
@@ -124,7 +124,6 @@ ComposePostHandler::ComposePostHandler(
   _user_timeline_teptr = nullptr;
   _zone = zone;
   _interest_zones = interest_zones;
-  cache = new MessageCache();
 }
 
 // Launch the pool with as much threads as cores
@@ -136,6 +135,13 @@ void ComposePostHandler::UploadCreator(
     int64_t req_id,
     const Creator &creator,
     const std::map<std::string, std::string> &carrier) {
+
+    Message message;
+    message.id = req_id;
+    message.text = creator.username;
+    message.carrier = std::string("creator_id:" + std::to_string(creator.user_id));
+    _message_cache.addSentMessage(message);
+  
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -201,6 +207,12 @@ void ComposePostHandler::UploadCreator(
   span->Finish();
   // XTRACE("ComposePostHandler::Upload Creator complete");
 
+  Message response_message;
+  response_message.id = req_id;
+  response_message.text = "UploadCreator response";
+  response_message.carrier = std::string("creator_id:" + std::to_string(creator.user_id));
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -210,6 +222,12 @@ void ComposePostHandler::UploadText(
     int64_t req_id,
     const std::string &text,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = text;
+  message.carrier = "text_upload";
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -269,6 +287,12 @@ void ComposePostHandler::UploadText(
 
   span->Finish();
 
+
+  Message response_message;
+  response_message.id = req_id;
+  response_message.text = "UploadText response";
+  response_message.carrier = "text_upload";
+  _message_cache.receiveMessage(response_message);
   // XTRACE("ComposePostHandler::UploadText Complete");
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
@@ -279,6 +303,16 @@ void ComposePostHandler::UploadMedia(
     int64_t req_id,
     const std::vector<Media> &media,
     const std::map<std::string, std::string> &carrier) {
+  
+  Message message;
+  message.id = req_id;
+  message.text = "Media upload request";
+  std::string media_ids = "media_ids:";
+  for (const auto& m : media) {
+    media_ids += std::to_string(m.media_id) + ",";
+  }
+  message.carrier = media_ids;
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -349,6 +383,13 @@ void ComposePostHandler::UploadMedia(
 
   span->Finish();
 
+  Message response_message;
+  response_message.id = req_id;
+  response_message.text = "UploadMedia response";
+  response_message.carrier = media_ids;
+  _message_cache.receiveMessage(response_message);
+
+
   // XTRACE("ComposePostService::UploadMedia complete");
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
@@ -360,6 +401,12 @@ void ComposePostHandler::UploadUniqueId(
     const int64_t post_id,
     const PostType::type post_type,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "UploadUniqueId request";
+  message.carrier = std::string("post_id:" + std::to_string(post_id));
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -423,6 +470,12 @@ void ComposePostHandler::UploadUniqueId(
 
   span->Finish();
 
+  Message response_message;
+  response_message.id = req_id;
+  response_message.text = "UploadUniqueId response";
+  response_message.carrier = std::string("post_id:" + std::to_string(post_id));
+  _message_cache.receiveMessage(response_message);
+
   // XTRACE("ComposePostService::UploadUniqueId complete");
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
@@ -433,6 +486,17 @@ void ComposePostHandler::UploadUrls(
     int64_t req_id,
     const std::vector<Url> &urls,
     const std::map<std::string, std::string> &carrier) {
+
+    Message message;
+    message.id = req_id;
+    message.text = "UploadUrls request";
+    // Create a string with shortened URLs
+    std::string url_list = "urls:";
+    for (const auto& url : urls) {
+      url_list += url.shortened_url + ",";
+    }
+    message.carrier = url_list;
+    _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -504,6 +568,12 @@ void ComposePostHandler::UploadUrls(
   span->Finish();
 
   // XTRACE("ComposePostService::UploadUrls complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  response_message.text = "UploadUrls response";
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -513,6 +583,18 @@ void ComposePostHandler::UploadUserMentions(
     const int64_t req_id,
     const std::vector<UserMention> &user_mentions,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "UploadUserMentions request";
+  // Create a string with user mentions
+  std::string mention_list = "mentions:";
+  for (const auto& mention : user_mentions) {
+    mention_list += mention.username + "(" + std::to_string(mention.user_id) + "),";
+  }
+  message.carrier = mention_list;
+  _message_cache.addSentMessage(message);
+
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -585,6 +667,10 @@ void ComposePostHandler::UploadUserMentions(
 
   span->Finish();
 
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   // XTRACE("ComposePostService::UploadUserMentions complete");
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
@@ -593,6 +679,8 @@ void ComposePostHandler::UploadUserMentions(
 void ComposePostHandler::_ComposeAndUpload(
     int64_t req_id,
     const std::map<std::string, std::string> &carrier) {
+
+
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -809,6 +897,7 @@ void ComposePostHandler::_UploadPostHelper(
     const std::map<std::string, std::string> &carrier,
     Baggage& baggage, std::promise<Baggage> baggage_promise) {
 
+
   BAGGAGE(baggage);
   TextMapReader reader(carrier);
   std::map<std::string, std::string> writer_text_map(carrier);
@@ -847,6 +936,8 @@ void ComposePostHandler::_UploadPostHelper(
     // XTRACE("Failed to connect to post-storage-service");
     _post_storage_teptr = std::current_exception();
   }
+
+
   baggage_promise.set_value(BRANCH_CURRENT_BAGGAGE());
   DELETE_CURRENT_BAGGAGE();
 }
@@ -953,8 +1044,6 @@ void ComposePostHandler::_UploadHomeTimelineHelper(
       ", \"cscope_str\": " + cscope.to_json() +
       ", \"carrier\": " + carrier_str + " }";
 
-  Message msg = {req_id, text, "sms"};
-  cache->addSentMessage()
 
   try {
     auto rabbitmq_client_wrapper = _rabbitmq_client_pool->Pop();

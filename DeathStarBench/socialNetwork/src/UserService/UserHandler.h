@@ -26,6 +26,7 @@
 #include "../logger.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
+#include "../cache.h"
 
 // Custom Epoch (January 1, 2018 Midnight GMT = 2018-01-01T00:00:00Z)
 #define CUSTOM_EPOCH 1514764800000
@@ -131,6 +132,7 @@ class UserHandler : public UserServiceIf {
   mongoc_client_pool_t *_mongodb_client_pool;
   ClientPool<ThriftClient<ComposePostServiceClient>> *_compose_client_pool;
   ClientPool<ThriftClient<SocialGraphServiceClient>> *_social_graph_client_pool;
+  MessageCache _message_cache;
 
 };
 
@@ -161,6 +163,18 @@ void UserHandler::RegisterUserWithId(
     const std::string &password,
     const int64_t user_id,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "RegisterUserWithId request";
+  message.carrier = std::string("first_name:" + first_name + 
+                                ",last_name:" + last_name +
+                                "username:" + username + 
+                                ",password:" + password +
+                                ",user_id:" + std::to_string(user_id));
+  _message_cache.addSentMessage(message);
+
+  
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -291,6 +305,11 @@ void UserHandler::RegisterUserWithId(
 
   span->Finish();
   // XTRACE("UserHandler::RegisterUserWithUserId complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -303,6 +322,16 @@ void UserHandler::RegisterUser(
     const std::string &username,
     const std::string &password,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "RegisterUser request";
+  message.carrier = std::string("first_name:" + first_name + 
+                                ",last_name:" + last_name +
+                                "username:" + username + 
+                                ",password:" + password +
+                                ",user_id:" + std::to_string(user_id));
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -468,6 +497,11 @@ void UserHandler::RegisterUser(
 
   span->Finish();
   // XTRACE("UserService::RegisterUser complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -477,6 +511,12 @@ void UserHandler::UploadCreatorWithUsername(
     const int64_t req_id,
     const std::string &username,
     const std::map<std::string, std::string> & carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "UploadCreatorWithUsername request";
+  message.carrier = std::string("username:" + username );
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -687,6 +727,12 @@ void UserHandler::UploadCreatorWithUsername(
   }
   span->Finish();
   // XTRACE("UserHandler::UploadCreatorWithUsername complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -697,6 +743,13 @@ void UserHandler::UploadCreatorWithUserId(
     int64_t user_id,
     const std::string &username,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "UploadCreatorWithUserId request";
+  message.carrier = std::string("username:" + username + 
+                                ",user_id:" + std::to_string(user_id));
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -746,6 +799,10 @@ void UserHandler::UploadCreatorWithUserId(
 
   span->Finish();
   // XTRACE("UploadCreatorWithUserId complete");
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -757,6 +814,14 @@ void UserHandler::Login(
     const std::string &username,
     const std::string &password,
     const std::map<std::string, std::string> &carrier) {
+
+
+  Message message;
+  message.id = req_id;
+  message.text = "Login request";
+  message.carrier = std::string("username:" + username + 
+                                ",password:" + password);
+  _message_cache.addSentMessage(message);
 
   std::string _return;
   auto baggage_it = carrier.find("baggage");
@@ -988,6 +1053,11 @@ void UserHandler::Login(
   }
   span->Finish();
   // XTRACE("UserService::Login complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -997,6 +1067,12 @@ void UserHandler::GetUserId(
     int64_t req_id,
     const std::string &username,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "GetUserId request";
+  message.carrier = std::string("username:" + username);
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -1176,6 +1252,11 @@ void UserHandler::GetUserId(
 
   span->Finish();
   // XTRACE("UserHandler::GetUserId complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+  
   response.baggage = GET_CURRENT_BAGGAGE().str();
   response.result = user_id;
   DELETE_CURRENT_BAGGAGE();

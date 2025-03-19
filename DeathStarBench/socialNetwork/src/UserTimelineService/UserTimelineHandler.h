@@ -17,6 +17,7 @@
 #include "../ThriftClient.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
+#include "../cache.h"
 
 namespace social_network {
 
@@ -39,6 +40,7 @@ class UserTimelineHandler : public UserTimelineServiceIf {
   ClientPool<RedisClient> *_redis_client_pool;
   mongoc_client_pool_t *_mongodb_client_pool;
   ClientPool<ThriftClient<PostStorageServiceClient>> *_post_client_pool;
+  MessageCache _message_cache;
 };
 
 UserTimelineHandler::UserTimelineHandler(
@@ -57,6 +59,14 @@ void UserTimelineHandler::WriteUserTimeline(
     int64_t user_id,
     int64_t timestamp,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "WriteUserTimeline request";
+  message.carrier = std::string("post_id:" + std::to_string(post_id) + 
+                                ",user_id:" + std::to_string(user_id) + 
+                              ",timestamp:" + std::to_string(timestamp));
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -186,6 +196,11 @@ void UserTimelineHandler::WriteUserTimeline(
   span->Finish();
 
   // XTRACE("UserTimelineHandler::WriteUserTimeline complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
 }
@@ -197,6 +212,14 @@ void UserTimelineHandler::ReadUserTimeline(
     int start,
     int stop,
     const std::map<std::string, std::string> &carrier) {
+  
+  Message message;
+  message.id = req_id;
+  message.text = "WriteUserTimeline request";
+  message.carrier = std::string("user_id:" + std::to_string(user_id) + 
+                                ",start:" + std::to_string(start) + 
+                              ",stop:" + std::to_string(stop));
+  _message_cache.addSentMessage(message);
 
   std::vector<Post> _return;
   auto baggage_it = carrier.find("baggage");
@@ -424,6 +447,10 @@ void UserTimelineHandler::ReadUserTimeline(
 
   span->Finish();
   // XTRACE("UserTimelineHandler::ReadUserTimeline complete");
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.result = _return;
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();

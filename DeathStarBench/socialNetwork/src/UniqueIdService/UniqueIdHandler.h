@@ -22,7 +22,7 @@
 #include "../tracing.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
-
+#include "../cache.h"
 // Custom Epoch (January 1, 2018 Midnight GMT = 2018-01-01T00:00:00Z)
 #define CUSTOM_EPOCH 1514764800000
 
@@ -64,6 +64,7 @@ class UniqueIdHandler : public UniqueIdServiceIf {
   std::mutex *_thread_lock;
   std::string _machine_id;
   ClientPool<ThriftClient<ComposePostServiceClient>> *_compose_client_pool;
+  MessageCache _message_cache;
 };
 
 UniqueIdHandler::UniqueIdHandler(
@@ -80,6 +81,12 @@ void UniqueIdHandler::UploadUniqueId(
     int64_t req_id,
     PostType::type post_type,
     const std::map<std::string, std::string> & carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "UploadUniqueId request";
+  message.carrier = std::string("post_type:" + std::to_string(post_type));
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -160,6 +167,10 @@ void UniqueIdHandler::UploadUniqueId(
   _compose_client_pool->Push(compose_post_client_wrapper);
 
   span->Finish();
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
 
   // XTRACE("UniqueIdHandler::UploadUniqueId complete");
   response.baggage = GET_CURRENT_BAGGAGE().str();

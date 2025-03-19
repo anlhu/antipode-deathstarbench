@@ -20,6 +20,7 @@
 #include "../tracing.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
+#include "../cache.h"
 
 #define CUSTOM_EPOCH 1514764800000
 
@@ -41,6 +42,7 @@ class MediaHandler : public MediaServiceIf {
 
  private:
   ClientPool<ThriftClient<ComposePostServiceClient>> *_compose_client_pool;
+  MessageCache _message_cache;
 };
 
 MediaHandler::MediaHandler(
@@ -54,6 +56,18 @@ void MediaHandler::UploadMedia(
     const std::vector<std::string> &media_types,
     const std::vector<int64_t> &media_ids,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "UploadMedia request";
+  
+  // Create a carrier string with media IDs
+  std::string media_info = "media_ids:";
+  for (size_t i = 0; i < media_ids.size(); ++i) {
+    media_info += std::to_string(media_ids[i]) + "(" + media_types[i] + "),";
+  }
+  message.carrier = media_info;
+  _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -116,6 +130,11 @@ void MediaHandler::UploadMedia(
   }
   _compose_client_pool->Push(compose_post_client_wrapper);
   span->Finish();
+
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
 
   // XTRACE("MediaHandler::UploadMedia complete");
   response.baggage = GET_CURRENT_BAGGAGE().str();
