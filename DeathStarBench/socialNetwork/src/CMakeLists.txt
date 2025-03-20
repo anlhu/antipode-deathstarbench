@@ -11,6 +11,8 @@ find_package(amqpcpp REQUIRED)
 find_package(Protobuf REQUIRED)
 list(APPEND CMAKE_MODULE_PATH "/usr/include/tbb/")
 find_package(TBB COMPONENTS tbbmalloc tbbmalloc_proxy tbb_preview)
+add_library(cache STATIC cache.h)
+set_target_properties(cache PROPERTIES LINKER_LANGUAGE CXX)
 
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)

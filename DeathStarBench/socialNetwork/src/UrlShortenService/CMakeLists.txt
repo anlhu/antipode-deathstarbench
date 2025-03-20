@@ -27,7 +27,7 @@ target_link_libraries(
     jaegertracing
     xtrace
     protobuf
-    Cache
+    cache
 )
 
 install(TARGETS UrlShortenService DESTINATION ./)

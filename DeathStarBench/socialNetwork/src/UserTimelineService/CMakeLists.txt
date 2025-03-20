@@ -28,7 +28,7 @@ target_link_libraries(
     /usr/local/lib/libtacopie.a
     xtrace
     protobuf
-    Cache
+    cache
 )
 
 install(TARGETS UserTimelineService DESTINATION ./)
