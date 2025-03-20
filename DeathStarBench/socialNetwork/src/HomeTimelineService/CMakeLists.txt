@@ -13,6 +13,8 @@ target_include_directories(
     /usr/local/include/xtrace
 )
 
+target_sources(UniqueIdService PRIVATE ../cache.cpp)
+
 target_link_libraries(
     HomeTimelineService
     nlohmann_json::nlohmann_json
@@ -26,7 +28,6 @@ target_link_libraries(
     /usr/local/lib/libtacopie.a
     xtrace
     protobuf
-    cache
 )
 
 install(TARGETS HomeTimelineService DESTINATION ./)

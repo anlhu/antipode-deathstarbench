@@ -6,6 +6,8 @@ add_executable(
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
 )
 
+target_sources(UniqueIdService PRIVATE ../cache.cpp)
+
 target_include_directories(
     MediaService PRIVATE
     /usr/local/include/jaegertracing
@@ -23,7 +25,6 @@ target_link_libraries(
     jaegertracing
     xtrace
     protobuf
-    cache
 )
 
 install(TARGETS MediaService DESTINATION ./)
