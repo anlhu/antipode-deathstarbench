@@ -7,7 +7,7 @@ add_executable(
 )
 add_library(Cache STATIC ../cache.h)
 set_target_properties(Cache PROPERTIES LINKER_LANGUAGE CXX)
-
+    
 target_include_directories(
     UniqueIdService PRIVATE
     /usr/local/include/jaegertracing

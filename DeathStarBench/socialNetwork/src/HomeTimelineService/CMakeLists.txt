@@ -6,6 +6,9 @@ add_executable(
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
 )
 
+add_library(Cache STATIC ../cache.h)
+set_target_properties(Cache PROPERTIES LINKER_LANGUAGE CXX)
+
 target_include_directories(
     HomeTimelineService PRIVATE
     /usr/local/include/jaegertracing
@@ -26,6 +29,7 @@ target_link_libraries(
     /usr/local/lib/libtacopie.a
     xtrace
     protobuf
+    Cache
 )
 
 install(TARGETS HomeTimelineService DESTINATION ./)
