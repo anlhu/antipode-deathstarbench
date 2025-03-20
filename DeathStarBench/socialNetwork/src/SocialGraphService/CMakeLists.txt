@@ -6,6 +6,8 @@ add_executable(
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
 )
 
+target_sources(SocialGraphService PRIVATE ../cache.cpp)
+
 target_include_directories(
     SocialGraphService PRIVATE
     ${MONGOC_INCLUDE_DIRS}

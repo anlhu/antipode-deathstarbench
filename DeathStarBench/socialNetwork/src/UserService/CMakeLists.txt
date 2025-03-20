@@ -7,6 +7,7 @@ add_executable(
     ${THRIFT_GEN_CPP_DIR}/SocialGraphService.cpp
 )
 
+target_sources(UserService PRIVATE ../cache.cpp)
 
 target_include_directories(
     UserService PRIVATE
