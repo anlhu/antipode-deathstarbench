@@ -5,6 +5,7 @@ add_executable(
     ${THRIFT_GEN_CPP_DIR}/ComposePostService.cpp
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
 )
+add_library(Cache STATIC ../cache.h)
 
 target_include_directories(
     UniqueIdService PRIVATE
@@ -23,6 +24,7 @@ target_link_libraries(
     jaegertracing
     xtrace
     protobuf
+    Cache
 )
 
 install(TARGETS UniqueIdService DESTINATION ./)
