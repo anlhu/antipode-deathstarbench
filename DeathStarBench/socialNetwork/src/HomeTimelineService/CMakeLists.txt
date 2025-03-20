@@ -13,7 +13,7 @@ target_include_directories(
     /usr/local/include/xtrace
 )
 
-target_sources(UniqueIdService PRIVATE ../cache.cpp)
+target_sources(HomeTimelineService PRIVATE ../cache.cpp)
 
 target_link_libraries(
     HomeTimelineService
