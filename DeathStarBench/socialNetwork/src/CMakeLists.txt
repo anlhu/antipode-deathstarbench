@@ -46,7 +46,6 @@ endif()
 
 
 set(THRIFT_GEN_CPP_DIR ../../gen-cpp)
-target_sources()
 add_subdirectory(TextService)
 add_subdirectory(UniqueIdService)
 add_subdirectory(UserService)
