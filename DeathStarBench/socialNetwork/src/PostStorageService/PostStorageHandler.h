@@ -547,7 +547,7 @@ void PostStorageHandler::ReadPosts(
 
   Message message;
   message.id = req_id;
-  message.text = "readposts request"
+  message.text = "readposts request";
   message.carrier = "request:read_multiple_posts";
   _message_cache.addSentMessage(message);
 

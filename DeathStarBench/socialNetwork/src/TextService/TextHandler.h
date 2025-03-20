@@ -56,7 +56,7 @@ void TextHandler::UploadText(
   Message message;
   message.id = req_id;
   message.text = "UploadText request";
-  message.carrier = std::string("text:" + text)
+  message.carrier = std::string("text:" + text);
   _message_cache.addSentMessage(message);
 
   std::map<std::string, std::string>::const_iterator baggage_it = carrier.find("baggage");

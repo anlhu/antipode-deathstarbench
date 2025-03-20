@@ -329,8 +329,7 @@ void UserHandler::RegisterUser(
   message.carrier = std::string("first_name:" + first_name + 
                                 ",last_name:" + last_name +
                                 "username:" + username + 
-                                ",password:" + password +
-                                ",user_id:" + std::to_string(user_id));
+                                ",password:" + password);
   _message_cache.addSentMessage(message);
 
   auto baggage_it = carrier.find("baggage");
