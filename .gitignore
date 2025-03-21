@@ -24,3 +24,4 @@ debug.bash
 .vscode/*
 _env/*
 *.pyc
+.DS_Store
