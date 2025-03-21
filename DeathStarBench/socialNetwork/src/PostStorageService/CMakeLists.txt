@@ -7,6 +7,8 @@ add_executable(
     ${THRIFT_GEN_CPP_DIR}/WriteHomeTimelineService.cpp
 )
 
+target_sources(PostStorageService PRIVATE ../cache.cpp)
+
 target_include_directories(
     PostStorageService PRIVATE
     ${LIBMEMCACHED_INCLUDE_DIR}

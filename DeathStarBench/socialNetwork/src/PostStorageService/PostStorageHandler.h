@@ -25,7 +25,7 @@
 #include "../ThriftClient.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
-
+#include "../cache.h"
 // for clock usage
 using namespace std::chrono;
 using namespace antipode;
@@ -58,6 +58,7 @@ class PostStorageHandler : public PostStorageServiceIf {
   ClientPool<ThriftClient<AntipodeOracleClient>> *_antipode_oracle_client_pool;
   std::string _zone;
   std::exception_ptr _post_storage_teptr;
+  MessageCache _message_cache;
 };
 
 PostStorageHandler::PostStorageHandler(
@@ -69,6 +70,7 @@ PostStorageHandler::PostStorageHandler(
   _mongodb_client_pool = mongodb_client_pool;
   _antipode_oracle_client_pool = antipode_oracle_client_pool;
   _zone = zone;
+  MessageCache _message_cache; 
 }
 
 // Launch the pool with as much threads as cores
@@ -80,6 +82,12 @@ void PostStorageHandler::StorePost(
     int64_t req_id, const social_network::Post &post,
     const std::string& cscope_str,
     const std::map<std::string, std::string> &carrier) {
+  
+  Message message;
+  message.id = req_id;
+  message.text = post.text;
+  message.carrier = std::string("request:post_id:" + std::to_string(post.post_id));
+  _message_cache.addSentMessage(message);
 
   //----------
   // -ANTIPODE
@@ -276,6 +284,11 @@ void PostStorageHandler::StorePost(
 
   span->Finish();
   // XTRACE("PostStorageHandler::StorePost complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   response.cscope_json = cscope.to_json();
   DELETE_CURRENT_BAGGAGE();
@@ -286,6 +299,12 @@ void PostStorageHandler::ReadPost(
     int64_t req_id,
     int64_t post_id,
     const std::map<std::string, std::string> &carrier) {
+    
+  Message message;
+  message.id = req_id;
+  message.text = "ReadPost Request";
+  message.carrier = std::string("request:read_post_id:" + std::to_string(post_id));
+  _message_cache.addSentMessage(message);
 
   Post _return;
   auto baggage_it = carrier.find("baggage");
@@ -509,6 +528,10 @@ void PostStorageHandler::ReadPost(
 
   span->Finish();
 
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   // XTRACE("PostStorageHandler::ReadPost complete");
   response.baggage = GET_CURRENT_BAGGAGE().str();
   response.result = _return;
@@ -520,6 +543,13 @@ void PostStorageHandler::ReadPosts(
     int64_t req_id,
     const std::vector<int64_t> &post_ids,
     const std::map<std::string, std::string> &carrier) {
+
+
+  Message message;
+  message.id = req_id;
+  message.text = "readposts request";
+  message.carrier = "request:read_multiple_posts";
+  _message_cache.addSentMessage(message);
 
   std::vector<Post> _return;
   auto baggage_it = carrier.find("baggage");
@@ -853,6 +883,11 @@ void PostStorageHandler::ReadPosts(
 
   // XTRACE("PostStorageHandler::ReadPosts complete");
   LOG(debug) << "PostStorageHandler::ReadPosts complete";
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
+
   response.baggage = GET_CURRENT_BAGGAGE().str();
   response.result = _return;
   DELETE_CURRENT_BAGGAGE();

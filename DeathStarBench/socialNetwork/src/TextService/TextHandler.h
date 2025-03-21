@@ -17,6 +17,7 @@
 #include "../ThriftClient.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
+#include "../cache.h"
 
 namespace social_network {
 
@@ -34,6 +35,7 @@ class TextHandler : public TextServiceIf {
   ClientPool<ThriftClient<ComposePostServiceClient>> *_compose_client_pool;
   ClientPool<ThriftClient<UrlShortenServiceClient>> *_url_client_pool;
   ClientPool<ThriftClient<UserMentionServiceClient>> *_user_mention_client_pool;
+  MessageCache _message_cache;
 };
 
 TextHandler::TextHandler(
@@ -50,6 +52,12 @@ void TextHandler::UploadText(
     int64_t req_id,
     const std::string &text,
     const std::map<std::string, std::string> & carrier) {
+  
+  Message message;
+  message.id = req_id;
+  message.text = "UploadText request";
+  message.carrier = std::string("text:" + text);
+  _message_cache.addSentMessage(message);
 
   std::map<std::string, std::string>::const_iterator baggage_it = carrier.find("baggage");
   if (baggage_it != carrier.end()) {
@@ -239,6 +247,10 @@ void TextHandler::UploadText(
   }
 
   span->Finish();
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
 
   // XTRACE("TextHandler::UploadText complete");
 

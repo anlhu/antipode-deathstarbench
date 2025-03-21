@@ -18,6 +18,7 @@
 #include "../tracing.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
+#include "../cache.h"
 
 #define HOSTNAME "http://short-url/"
 
@@ -44,6 +45,7 @@ class UrlShortenHandler : public UrlShortenServiceIf {
   static std::mt19937 _generator;
   static std::uniform_int_distribution<int> _distribution;
   static std::string _GenRandomStr(int length);
+  MessageCache _message_cache;
 };
 
 std::mt19937 UrlShortenHandler::_generator = std::mt19937(
@@ -74,6 +76,18 @@ void UrlShortenHandler::UploadUrls(
     int64_t req_id,
     const std::vector<std::string> &urls,
     const std::map<std::string, std::string> &carrier) {
+
+  Message message;
+  message.id = req_id;
+  message.text = "UploadUrls request";
+  std::string url_list = "urls:";
+  for (const auto& url : urls) {
+    url_list += url + ",";
+  }
+  message.carrier = url_list;
+  _message_cache.addSentMessage(message);
+  
+  
 
   std::vector<std::string> _return;
   std::map<std::string, std::string>::const_iterator baggage_it = carrier.find("baggage");
@@ -218,6 +232,10 @@ void UrlShortenHandler::UploadUrls(
   span->Finish();
 
   // XTRACE("TextHandler::UploadText complete");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
 
   response.baggage = GET_CURRENT_BAGGAGE().str();
   response.result = _return;

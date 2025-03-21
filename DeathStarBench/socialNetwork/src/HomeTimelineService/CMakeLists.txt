@@ -13,6 +13,8 @@ target_include_directories(
     /usr/local/include/xtrace
 )
 
+target_sources(HomeTimelineService PRIVATE ../cache.cpp)
+
 target_link_libraries(
     HomeTimelineService
     nlohmann_json::nlohmann_json

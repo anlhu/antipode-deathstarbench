@@ -16,6 +16,7 @@
 #include "../utils.h"
 #include <xtrace/xtrace.h>
 #include <xtrace/baggage.h>
+#include "../cache.h"
 
 namespace social_network {
 
@@ -33,6 +34,7 @@ class UserMentionHandler : public UserMentionServiceIf {
   memcached_pool_st *_memcached_client_pool;
   mongoc_client_pool_t *_mongodb_client_pool;
   ClientPool<ThriftClient<ComposePostServiceClient>> *_compose_client_pool;
+  MessageCache _message_cache;
 };
 
 UserMentionHandler::UserMentionHandler(
@@ -49,6 +51,17 @@ void UserMentionHandler::UploadUserMentions(
     int64_t req_id,
     const std::vector<std::string> &usernames,
     const std::map<std::string, std::string> &carrier) {
+
+
+    Message message;
+    message.id = req_id;
+    message.text = "UploadUserMentions request";
+    std::string name_list = "usernames:";
+    for (const auto& username : usernames) {
+      name_list += username + ",";
+    }
+    message.carrier = name_list;
+    _message_cache.addSentMessage(message);
 
   // Initialize a baggage
   auto baggage_it = carrier.find("baggage");
@@ -267,6 +280,10 @@ void UserMentionHandler::UploadUserMentions(
   span->Finish();
 
   // XTRACE("UserMentionService::UploadUserMentions");
+
+  Message response_message;
+  response_message.id = req_id;
+  _message_cache.receiveMessage(response_message);
 
   response.baggage = GET_CURRENT_BAGGAGE().str();
   DELETE_CURRENT_BAGGAGE();
